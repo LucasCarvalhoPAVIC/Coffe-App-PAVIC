@@ -1,4 +1,6 @@
 import 'package:flutter/material.dart';
+import 'package:firebase_auth/firebase_auth.dart';
+import 'package:google_sign_in/google_sign_in.dart';
 
 class LoginScreen extends StatefulWidget {
   const LoginScreen({super.key});
@@ -14,14 +16,26 @@ class _LoginScreenState extends State<LoginScreen> {
 
   bool _isPasswordVisible = false;
 
+  // Instâncias do FirebaseAuth e GoogleSignIn
+  final FirebaseAuth _auth = FirebaseAuth.instance;
+  final GoogleSignIn _googleSignIn = GoogleSignIn();
+
   // Função de validação dos campos
-  void _validateAndSubmit() {
+  Future<void> _validateAndSubmit() async {
     if (_formKey.currentState!.validate()) {
-      Navigator.pushNamed(context, '/home');
-      // Aqui você pode adicionar a navegação para outra tela ou chamada de API.
-      // Exemplo: Navigator.pushReplacement(context, ...);
-    } else {
-      Navigator.pushNamed(context, '/home');
+      try {
+        UserCredential userCredential = await _auth.signInWithEmailAndPassword(
+          email: _emailController.text.trim(),
+          password: _passwordController.text.trim(),
+        );
+        // Navegar para a tela home se o login for bem-sucedido
+        Navigator.pushReplacementNamed(context, '/home');
+      } catch (e) {
+        // Exibir mensagem de erro se o login falhar
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(content: Text('Erro ao fazer login: ${e.toString()}')),
+        );
+      }
     }
   }
 
@@ -46,6 +60,29 @@ class _LoginScreenState extends State<LoginScreen> {
       return 'A senha deve ter pelo menos 6 caracteres.';
     }
     return null;
+  }
+
+  // Função para login com Google
+  Future<void> _signInWithGoogle() async {
+    try {
+      final GoogleSignInAccount? googleUser = await _googleSignIn.signIn();
+      if (googleUser == null) {
+        // O usuário cancelou o login
+        return;
+      }
+      final GoogleSignInAuthentication googleAuth = await googleUser.authentication;
+      final AuthCredential credential = GoogleAuthProvider.credential(
+        accessToken: googleAuth.accessToken,
+        idToken: googleAuth.idToken,
+      );
+      await _auth.signInWithCredential(credential);
+      // Navegar para a tela home se o login for bem-sucedido
+      Navigator.pushReplacementNamed(context, '/home');
+    } catch (e) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(content: Text('Erro ao fazer login com Google: ${e.toString()}')),
+      );
+    }
   }
 
   @override
@@ -123,7 +160,6 @@ class _LoginScreenState extends State<LoginScreen> {
                     alignment: Alignment.centerRight,
                     child: TextButton(
                       onPressed: () {
-                        // Ação para "Esqueci minha senha"
                         print('Recuperação de senha não implementada.');
                       },
                       child: Text(
@@ -134,7 +170,7 @@ class _LoginScreenState extends State<LoginScreen> {
                   ),
                   TextButton(
                     onPressed: () {
-                      Navigator.pushNamed(context, '/signup'); // Navega para a tela de cadastro
+                      Navigator.pushNamed(context, '/signup');
                     },
                     child: Text('Don’t have an account? Sign up'),
                   ),
@@ -155,6 +191,24 @@ class _LoginScreenState extends State<LoginScreen> {
                       style: TextStyle(fontSize: 18),
                     ),
                   ),
+                  SizedBox(height: 16.0),
+
+                  // Botão "Login with Google"
+                  ElevatedButton.icon(
+                    onPressed: _signInWithGoogle, // Ação para login com Google
+                    style: ElevatedButton.styleFrom(
+                      backgroundColor: Colors.redAccent,
+                      shape: RoundedRectangleBorder(
+                        borderRadius: BorderRadius.circular(8.0),
+                      ),
+                      padding: const EdgeInsets.symmetric(vertical: 16.0),
+                    ),
+                    icon: Icon(Icons.login),
+                    label: Text(
+                      'Login with Google',
+                      style: TextStyle(fontSize: 18),
+                    ),
+                  ),
                 ],
               ),
             ),
@@ -163,7 +217,7 @@ class _LoginScreenState extends State<LoginScreen> {
             Row(
               mainAxisAlignment: MainAxisAlignment.center,
               children: [
-                Image.asset('assets/logo1.png', height: 40), // Substitua com a imagem real
+                Image.asset('assets/logo1.png', height: 40),
                 SizedBox(width: 16.0),
               ],
             ),
