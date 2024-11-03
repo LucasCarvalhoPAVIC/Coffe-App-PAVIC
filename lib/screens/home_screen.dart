@@ -18,24 +18,34 @@ class _HomeScreenState extends State<HomeScreen> {
     _loadRecentImages();
   }
 
-  // Função para carregar as últimas três imagens do diretório 'results'
+  // Função para carregar as imagens do diretório 'results'
   Future<void> _loadRecentImages() async {
     final directory = await getApplicationDocumentsDirectory();
     final resultsDir = Directory('${directory.path}/results');
 
+    // Cria o diretório 'results' se não existir
     if (!await resultsDir.exists()) {
-    await resultsDir.create(recursive: true);
+      await resultsDir.create(recursive: true);
+    }
+
+    // Carrega as imagens do diretório
+    final List<FileSystemEntity> files = resultsDir.listSync();
+    List<File> images = [];
+
+    for (var file in files) {
+      if (_isImage(file.path)) {
+        final imageFile = File(file.path);
+        // Verifica se o arquivo não está vazio
+        if (await imageFile.length() > 0) {
+          images.add(imageFile);
+        }
+      }
+    }
+
+    setState(() {
+      _recentImages = images; // Atualiza a lista de imagens recentes
+    });
   }
-
-  // Suponha que temos uma imagem processada como File
-  final processedImage = File('${resultsDir.path}/processed_image_${DateTime.now().millisecondsSinceEpoch}.png');
-  
-  // Salva a imagem (no exemplo, substitua isso pela lógica do processamento real)
-  await processedImage.writeAsBytes([]); // Aqui você colocaria os bytes reais da imagem
-
-  // Recarrega as imagens para exibir na tela
-  _loadRecentImages();
-}
 
   // Verifica se o arquivo é uma imagem
   bool _isImage(String path) {
@@ -46,6 +56,7 @@ class _HomeScreenState extends State<HomeScreen> {
   // Simulação de captura de imagem (pode ser substituído por lógica de câmera)
   Future<void> _pickImage() async {
     // Lógica futura para capturar imagem e salvar em 'results'
+    // Aqui você deve incluir a lógica para salvar uma imagem processada
     print('Capturar imagem...');
   }
 
@@ -61,19 +72,19 @@ class _HomeScreenState extends State<HomeScreen> {
         child: _recentImages.isEmpty
             ? Center(child: Text('Nenhuma imagem encontrada.'))
             : GridView.builder(
-          gridDelegate: SliverGridDelegateWithFixedCrossAxisCount(
-            crossAxisCount: 3,
-            mainAxisSpacing: 8.0,
-            crossAxisSpacing: 8.0,
-          ),
-          itemCount: _recentImages.length,
-          itemBuilder: (context, index) {
-            return Image.file(
-              _recentImages[index],
-              fit: BoxFit.cover,
-            );
-          },
-        ),
+                gridDelegate: SliverGridDelegateWithFixedCrossAxisCount(
+                  crossAxisCount: 3,
+                  mainAxisSpacing: 8.0,
+                  crossAxisSpacing: 8.0,
+                ),
+                itemCount: _recentImages.length,
+                itemBuilder: (context, index) {
+                  return Image.file(
+                    _recentImages[index],
+                    fit: BoxFit.cover,
+                  );
+                },
+              ),
       ),
       bottomNavigationBar: BottomAppBar(
         shape: CircularNotchedRectangle(),
@@ -82,14 +93,15 @@ class _HomeScreenState extends State<HomeScreen> {
           mainAxisAlignment: MainAxisAlignment.spaceAround,
           children: [
             IconButton(
-                icon: Icon(Icons.photo, color: Colors.green),
-                onPressed: () {
-                  Navigator.pushNamed(context, '/gallery');
-                }
+              icon: Icon(Icons.photo, color: Colors.green),
+              onPressed: () {
+                Navigator.pushNamed(context, '/gallery');
+              },
             ),
             IconButton(
               icon: Icon(Icons.home, color: Colors.green),
-              onPressed: () { Navigator.pushNamed(context, '/home');
+              onPressed: () {
+                Navigator.pushNamed(context, '/home');
               }, // Navega para Home
             ),
             IconButton(

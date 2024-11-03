@@ -141,15 +141,15 @@ class _ImageGalleryScreenState extends State<ImageGalleryScreen> {
               mainAxisAlignment: MainAxisAlignment.spaceAround,
               children: [
                 ElevatedButton(
-                  onPressed: _importImage,
+                  onPressed: _importImage, // Botão para importar imagem
                   child: Text('Importar'),
                 ),
                 ElevatedButton(
-                  onPressed: _deleteSelectedImage,
+                  onPressed: _deleteSelectedImage, // Botão para deletar imagem selecionada
                   child: Text('Deletar'),
                 ),
                 ElevatedButton(
-                  onPressed: _sendImageToServer,
+                  onPressed: _sendImageToServer, // Botão para enviar imagem selecionada
                   child: Text('Enviar'),
                 ),
               ],
@@ -193,21 +193,6 @@ class _ImageGalleryScreenState extends State<ImageGalleryScreen> {
             ),
           ),
         ],
-      ),
-      bottomNavigationBar: BottomAppBar(
-        child: Row(
-          mainAxisAlignment: MainAxisAlignment.spaceAround,
-          children: [
-            IconButton(
-              icon: Icon(Icons.camera),
-              onPressed: _pickImage,
-            ),
-            IconButton(
-              icon: Icon(Icons.photo_library),
-              onPressed: _importImage,
-            ),
-          ],
-        ),
       ),
     );
   }
