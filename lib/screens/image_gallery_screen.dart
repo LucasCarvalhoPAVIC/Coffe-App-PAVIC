@@ -1,21 +1,21 @@
+import 'dart:convert';
 import 'dart:io';
-
 import 'package:flutter/material.dart';
 import 'package:image_picker/image_picker.dart';
 import 'package:path/path.dart' as path;
 import 'package:path_provider/path_provider.dart';
+import 'package:http/http.dart' as http;
 
 class ImageGalleryScreen extends StatefulWidget {
-  const ImageGalleryScreen({super.key});
-
   @override
   _ImageGalleryScreenState createState() => _ImageGalleryScreenState();
 }
 
 class _ImageGalleryScreenState extends State<ImageGalleryScreen> {
-  List<File> _images = [];
-  final List<File> _selectedImages = [];
   final ImagePicker _picker = ImagePicker();
+  List<File> _images = [];
+  File? _selectedImage;
+  String? _currentDiagnosis;
 
   @override
   void initState() {
@@ -41,22 +41,22 @@ class _ImageGalleryScreenState extends State<ImageGalleryScreen> {
 
   Future<void> _pickImage() async {
     final pickedFile = await _picker.pickImage(source: ImageSource.camera);
-
     if (pickedFile != null) {
       final savedImage = await _saveImage(File(pickedFile.path));
       setState(() {
         _images.add(savedImage);
+        _selectedImage = savedImage; // Define a imagem selecionada
       });
     }
   }
 
   Future<void> _importImage() async {
     final pickedFile = await _picker.pickImage(source: ImageSource.gallery);
-
     if (pickedFile != null) {
       final savedImage = await _saveImage(File(pickedFile.path));
       setState(() {
         _images.add(savedImage);
+        _selectedImage = savedImage; // Define a imagem selecionada
       });
     }
   }
@@ -75,91 +75,54 @@ class _ImageGalleryScreenState extends State<ImageGalleryScreen> {
     return image.copy(savedImagePath);
   }
 
-  void _toggleSelection(File image, {bool longPress = false}) {
-    setState(() {
-      if (_selectedImages.isEmpty) {
-        if (longPress) {
-          _selectedImages.add(image);
-        } else {
-          _showExpandedImage(image);
-        }
-      } else {
-        if (_selectedImages.contains(image)) {
-          _selectedImages.remove(image);
-        } else {
-          _selectedImages.add(image);
-        }
-      }
-    });
-  }
+  Future<void> _sendImageToServer() async {
+    if (_selectedImage == null) return;
 
-  void _showExpandedImage(File image) {
-    showDialog(
-      context: context,
-      builder: (_) => Dialog(
-        child: GestureDetector(
-          onTap: () => Navigator.of(context).pop(),
-          child: Image.file(image, fit: BoxFit.contain),
-        ),
-      ),
+    final request = http.MultipartRequest(
+      'POST',
+      Uri.parse('http://192.168.0.31:5000/diagnose'), // URL do servidor
     );
-  }
+    request.files.add(await http.MultipartFile.fromPath('image', _selectedImage!.path));
 
-  void _deleteSelectedImages() async {
-    if (_selectedImages.isNotEmpty) {
-      ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(
-          content: Text('Deletando ${_selectedImages.length} imagens...'),
-          duration: Duration(seconds: 1),
-        ),
-      );
-
-      for (var image in _selectedImages) {
-        await image.delete();
-        _images.remove(image);
-      }
-
-      ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(
-          content: Text('${_selectedImages.length} imagens deletadas com sucesso!'),
-          duration: Duration(seconds: 2),
-        ),
-      );
-
+    final response = await request.send();
+    if (response.statusCode == 200) {
+      final responseData = await response.stream.bytesToString();
       setState(() {
-        _selectedImages.clear();
+        _currentDiagnosis = json.decode(responseData)['diagnosis'];
       });
+      _showDiagnosisDialog(_currentDiagnosis);
     } else {
-      ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(
-          content: Text('Nenhuma imagem selecionada.'),
-          duration: Duration(seconds: 2),
-        ),
-      );
+      _showDiagnosisDialog('Erro ao processar a imagem.');
     }
   }
 
-  void _sendSelectedImages() async {
-    if (_selectedImages.isNotEmpty) {
-      ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(
-          content: Text('Enviando ${_selectedImages.length} imagens...'),
-          duration: Duration(seconds: 2),
-        ),
-      );
+  void _showDiagnosisDialog(String? diagnosis) {
+    showDialog(
+      context: context,
+      builder: (BuildContext context) {
+        return AlertDialog(
+          title: Text('Diagnóstico'),
+          content: Text(diagnosis ?? 'Erro ao processar a imagem.'),
+          actions: <Widget>[
+            TextButton(
+              child: Text('Fechar'),
+              onPressed: () {
+                Navigator.of(context).pop();
+              },
+            ),
+          ],
+        );
+      },
+    );
+  }
 
-      // Process images here (e.g., using ImageProcessor)
-
+  Future<void> _deleteSelectedImage() async {
+    if (_selectedImage != null) {
+      await _selectedImage!.delete();
       setState(() {
-        _selectedImages.clear();
+        _images.remove(_selectedImage);
+        _selectedImage = null; // Reseta a imagem selecionada após a exclusão
       });
-    } else {
-      ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(
-          content: Text('Nenhuma imagem selecionada.'),
-          duration: Duration(seconds: 2),
-        ),
-      );
     }
   }
 
@@ -167,135 +130,85 @@ class _ImageGalleryScreenState extends State<ImageGalleryScreen> {
   Widget build(BuildContext context) {
     return Scaffold(
       appBar: AppBar(
-        backgroundColor: Colors.white,
-        elevation: 0,
-        title: Column(
-          children: [
-            Image.asset(
-              "assets/logo1.png",
-              height: 24,
-            ),
-            Text(
-              "Galeria",
-              style: TextStyle(
-                fontSize: 22,
-                fontWeight: FontWeight.bold,
-                color: Colors.black87,
-              ),
-            ),
-          ],
-        ),
+        title: Text('Diagnóstico de Folhas'),
         centerTitle: true,
-        actions: [SizedBox(width: 36)],
       ),
       body: Column(
         children: [
           Padding(
-            padding: const EdgeInsets.symmetric(horizontal: 16.0, vertical: 8.0),
+            padding: const EdgeInsets.all(16.0),
             child: Row(
-              mainAxisAlignment: MainAxisAlignment.spaceBetween,
+              mainAxisAlignment: MainAxisAlignment.spaceAround,
               children: [
                 ElevatedButton(
                   onPressed: _importImage,
                   child: Text('Importar'),
                 ),
                 ElevatedButton(
-                  onPressed: _deleteSelectedImages,
+                  onPressed: _deleteSelectedImage,
                   child: Text('Deletar'),
                 ),
                 ElevatedButton(
-                  onPressed: _sendSelectedImages,
+                  onPressed: _sendImageToServer,
                   child: Text('Enviar'),
                 ),
               ],
             ),
           ),
           Expanded(
-            child: Container(
-              margin: const EdgeInsets.all(16.0),
-              decoration: BoxDecoration(
-                color: Colors.grey[200],
-                borderRadius: BorderRadius.circular(12),
+            child: GridView.builder(
+              padding: const EdgeInsets.all(8.0),
+              gridDelegate: SliverGridDelegateWithFixedCrossAxisCount(
+                crossAxisCount: 3,
+                crossAxisSpacing: 8.0,
+                mainAxisSpacing: 8.0,
               ),
-              child: GridView.builder(
-                padding: const EdgeInsets.all(8.0),
-                gridDelegate: SliverGridDelegateWithFixedCrossAxisCount(
-                  crossAxisCount: 3,
-                  crossAxisSpacing: 8.0,
-                  mainAxisSpacing: 8.0,
-                ),
-                itemCount: _images.length,
-                itemBuilder: (context, index) {
-                  final image = _images[index];
-                  final isSelected = _selectedImages.contains(image);
-
-                  return GestureDetector(
-                    onTap: () => _toggleSelection(image),
-                    onLongPress: () => _toggleSelection(image, longPress: true),
-                    child: Stack(
-                      children: [
-                        ClipRRect(
-                          borderRadius: BorderRadius.circular(8.0),
-                          child: Image.file(
-                            image,
-                            fit: BoxFit.cover,
-                            width: double.infinity,
-                            height: double.infinity,
+              itemCount: _images.length,
+              itemBuilder: (context, index) {
+                final image = _images[index];
+                return GestureDetector(
+                  onTap: () {
+                    setState(() {
+                      _selectedImage = image; // Define a imagem selecionada ao tocar
+                    });
+                  },
+                  child: Stack(
+                    children: [
+                      Image.file(
+                        image,
+                        fit: BoxFit.cover,
+                        width: double.infinity,
+                        height: double.infinity,
+                      ),
+                      if (_selectedImage == image) // Verifica se a imagem está selecionada
+                        Container(
+                          decoration: BoxDecoration(
+                            border: Border.all(color: Colors.blueAccent, width: 3), // Borda azul para a imagem selecionada
                           ),
                         ),
-                        if (isSelected)
-                          Positioned(
-                            top: 8,
-                            right: 8,
-                            child: Icon(
-                              Icons.check_circle,
-                              color: Colors.green,
-                              size: 24,
-                            ),
-                          ),
-                      ],
-                    ),
-                  );
-                },
-              ),
+                    ],
+                  ),
+                );
+              },
             ),
           ),
         ],
       ),
       bottomNavigationBar: BottomAppBar(
-        shape: CircularNotchedRectangle(),
-        notchMargin: 8.0,
         child: Row(
           mainAxisAlignment: MainAxisAlignment.spaceAround,
           children: [
             IconButton(
-              icon: Icon(Icons.photo, color: Colors.green),
-              onPressed: () {
-                Navigator.pushNamed(context, '/gallery');
-              },
+              icon: Icon(Icons.camera),
+              onPressed: _pickImage,
             ),
             IconButton(
-              icon: Icon(Icons.home, color: Colors.green),
-              onPressed: () {
-                Navigator.pushNamed(context, '/home');
-              },
-            ),
-            IconButton(
-              icon: Icon(Icons.person, color: Colors.green),
-              onPressed: () {
-                Navigator.pushNamed(context, '/profile');
-              },
+              icon: Icon(Icons.photo_library),
+              onPressed: _importImage,
             ),
           ],
         ),
       ),
-      floatingActionButton: FloatingActionButton(
-        backgroundColor: Colors.green,
-        onPressed: _pickImage,
-        child: Icon(Icons.camera),
-      ),
-      floatingActionButtonLocation: FloatingActionButtonLocation.centerDocked,
     );
-
   }
 }

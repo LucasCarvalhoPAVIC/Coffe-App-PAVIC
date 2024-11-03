@@ -23,21 +23,19 @@ class _HomeScreenState extends State<HomeScreen> {
     final directory = await getApplicationDocumentsDirectory();
     final resultsDir = Directory('${directory.path}/results');
 
-    if (await resultsDir.exists()) {
-      // Listar arquivos do diretório e ordenar por data de modificação
-      final images = resultsDir
-          .listSync()
-          .where((file) => file is File && _isImage(file.path))
-          .map((file) => file as File)
-          .toList()
-        ..sort((a, b) => b.lastModifiedSync().compareTo(a.lastModifiedSync()));
-
-      // Pegar as três últimas imagens
-      setState(() {
-        _recentImages = images.take(3).toList();
-      });
-    }
+    if (!await resultsDir.exists()) {
+    await resultsDir.create(recursive: true);
   }
+
+  // Suponha que temos uma imagem processada como File
+  final processedImage = File('${resultsDir.path}/processed_image_${DateTime.now().millisecondsSinceEpoch}.png');
+  
+  // Salva a imagem (no exemplo, substitua isso pela lógica do processamento real)
+  await processedImage.writeAsBytes([]); // Aqui você colocaria os bytes reais da imagem
+
+  // Recarrega as imagens para exibir na tela
+  _loadRecentImages();
+}
 
   // Verifica se o arquivo é uma imagem
   bool _isImage(String path) {

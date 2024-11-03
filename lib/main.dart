@@ -10,16 +10,20 @@ import 'screens/image_gallery_screen.dart';
 import 'screens/profile_screen.dart';
 
 Future<void> main() async {
-  WidgetsFlutterBinding.ensureInitialized(); // Garante que o Flutter esteja inicializado
+  WidgetsFlutterBinding.ensureInitialized();
   await Firebase.initializeApp();
 
   // Cria o diretório de imagens antes de executar o app
-  final directory = await getApplicationDocumentsDirectory();
-  final imageDirectoryPath = '${directory.path}/images';
-  final imageDirectory = Directory(imageDirectoryPath);
+  try {
+    final directory = await getApplicationDocumentsDirectory();
+    final imageDirectoryPath = '${directory.path}/images';
+    final imageDirectory = Directory(imageDirectoryPath);
 
-  if (!await imageDirectory.exists()) {
-    await imageDirectory.create(recursive: true);
+    if (!await imageDirectory.exists()) {
+      await imageDirectory.create(recursive: true);
+    }
+  } catch (e) {
+    print('Erro ao criar o diretório de imagens: $e');
   }
 
   runApp(const MyApp());
@@ -32,17 +36,16 @@ class MyApp extends StatelessWidget {
   Widget build(BuildContext context) {
     return MaterialApp(
       debugShowCheckedModeBanner: false,
-      initialRoute: '/login', // Altera para iniciar na tela de login
+      initialRoute: '/login',
       routes: {
-        '/login': (context) => const LoginScreen(), // Rota para a tela de login
-        '/signup': (context) => const SignupScreen(), // Rota para a tela de cadastro
-        '/home': (context) => const HomeScreen(), // Rota para HomeScreen
-        '/gallery': (context) => const ImageGalleryScreen(), // Rota para Galeria
-        '/profile': (context) => const ProfileScreen(), // Rota para o perfil de usuário
+        '/login': (context) => const LoginScreen(),
+        '/signup': (context) => const SignupScreen(),
+        '/home': (context) => const HomeScreen(),
+        '/gallery': (context) => ImageGalleryScreen(),
+        '/profile': (context) => const ProfileScreen(),
       },
       onUnknownRoute: (settings) {
-        // Rota padrão se a rota não for encontrada
-        return MaterialPageRoute(builder: (context) => const LoginScreen()); // Redireciona para a tela de login
+        return MaterialPageRoute(builder: (context) => const LoginScreen());
       },
     );
   }
