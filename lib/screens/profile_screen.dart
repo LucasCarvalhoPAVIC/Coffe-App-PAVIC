@@ -110,14 +110,20 @@ class _ProfileScreenState extends State<ProfileScreen> {
               child: _buildTextField("CPF", _cpfController, false),
             ),
             SizedBox(height: 24),
-            // Botão para logout
+           // Botão para logout
             ElevatedButton(
               onPressed: _logout,
               style: ElevatedButton.styleFrom(
                 backgroundColor: Colors.red,
                 minimumSize: Size(double.infinity, 48),
               ),
-              child: Text('Logout'),
+              child: Text(
+                'Logout',
+                style: TextStyle(
+                  color: Colors.white, // Define a cor do texto
+                  fontSize: 18, // Opcional: ajusta o tamanho do texto
+                ),
+              ),
             ),
           ],
         ),
