@@ -140,9 +140,7 @@ class _LoginScreenState extends State<LoginScreen> {
                       ),
                       suffixIcon: IconButton(
                         icon: Icon(
-                          _isPasswordVisible
-                              ? Icons.visibility
-                              : Icons.visibility_off,
+                          _isPasswordVisible ? Icons.visibility : Icons.visibility_off,
                         ),
                         onPressed: () {
                           setState(() {
@@ -195,7 +193,7 @@ class _LoginScreenState extends State<LoginScreen> {
 
                   // Botão "Login with Google"
                   ElevatedButton.icon(
-                    onPressed: _signInWithGoogle, // Ação para login com Google
+                    onPressed: _signInWithGoogle,
                     style: ElevatedButton.styleFrom(
                       backgroundColor: Colors.redAccent,
                       shape: RoundedRectangleBorder(

@@ -1,9 +1,7 @@
 import 'dart:io';
-
 import 'package:firebase_core/firebase_core.dart';
 import 'package:flutter/material.dart';
 import 'package:path_provider/path_provider.dart';
-import 'package:firebase_auth/firebase_auth.dart'; // Importar o Firebase Auth
 
 import 'screens/login_screen.dart';
 import 'screens/signup_screen.dart';
@@ -12,10 +10,10 @@ import 'screens/image_gallery_screen.dart';
 import 'screens/profile_screen.dart';
 
 Future<void> main() async {
-  WidgetsFlutterBinding.ensureInitialized(); // Ensure Flutter is initialized
+  WidgetsFlutterBinding.ensureInitialized(); // Garante que o Flutter esteja inicializado
   await Firebase.initializeApp();
 
-  // Create image directory before running the app
+  // Cria o diretório de imagens antes de executar o app
   final directory = await getApplicationDocumentsDirectory();
   final imageDirectoryPath = '${directory.path}/images';
   final imageDirectory = Directory(imageDirectoryPath);
@@ -24,7 +22,7 @@ Future<void> main() async {
     await imageDirectory.create(recursive: true);
   }
 
-  runApp(MyApp());
+  runApp(const MyApp());
 }
 
 class MyApp extends StatelessWidget {
@@ -34,26 +32,17 @@ class MyApp extends StatelessWidget {
   Widget build(BuildContext context) {
     return MaterialApp(
       debugShowCheckedModeBanner: false,
-      home: StreamBuilder<User?>(
-        stream: FirebaseAuth.instance.authStateChanges(), // Monitorar mudanças de autenticação
-        builder: (context, snapshot) {
-          if (snapshot.connectionState == ConnectionState.active) {
-            final User? user = snapshot.data;
-            if (user != null) {
-              // Se o usuário está autenticado, ir para a HomeScreen
-              return HomeScreen();
-            }
-            // Se o usuário não está autenticado, mostrar a LoginScreen
-            return LoginScreen();
-          }
-          // Enquanto a conexão está sendo estabelecida, você pode mostrar um carregamento
-          return Center(child: CircularProgressIndicator());
-        },
-      ),
+      initialRoute: '/login', // Altera para iniciar na tela de login
       routes: {
-        '/signup': (context) => SignupScreen(), // Defina a rota para a tela de cadastro
-        '/gallery': (context) => ImageGalleryScreen(), // Rota para Galeria
-        "/profile": (context) => ProfileScreen(), // Rota para o perfil de usuario.
+        '/login': (context) => const LoginScreen(), // Rota para a tela de login
+        '/signup': (context) => const SignupScreen(), // Rota para a tela de cadastro
+        '/home': (context) => const HomeScreen(), // Rota para HomeScreen
+        '/gallery': (context) => const ImageGalleryScreen(), // Rota para Galeria
+        '/profile': (context) => const ProfileScreen(), // Rota para o perfil de usuário
+      },
+      onUnknownRoute: (settings) {
+        // Rota padrão se a rota não for encontrada
+        return MaterialPageRoute(builder: (context) => const LoginScreen()); // Redireciona para a tela de login
       },
     );
   }

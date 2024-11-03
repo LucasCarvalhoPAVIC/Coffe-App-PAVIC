@@ -1,7 +1,8 @@
 import 'dart:io';
 import 'package:flutter/material.dart';
 import 'package:image_picker/image_picker.dart';
-import 'package:path_provider/path_provider.dart';
+import 'package:firebase_auth/firebase_auth.dart';
+import 'package:google_sign_in/google_sign_in.dart';
 
 class ProfileScreen extends StatefulWidget {
   const ProfileScreen({super.key});
@@ -10,38 +11,32 @@ class ProfileScreen extends StatefulWidget {
   _ProfileScreenState createState() => _ProfileScreenState();
 }
 
-class Box extends StatelessWidget {
-  final String _phoneController = "68 99210-4525";
-
-  const Box({super.key});
-
-  @override
-  Widget build(BuildContext context) {
-    return Container(
-      padding: EdgeInsets.all(16.0),
-      decoration: BoxDecoration(
-        color: Colors.blueAccent,
-        borderRadius: BorderRadius.circular(8.0),
-      ),
-      child: Text(
-        _phoneController,
-        style: TextStyle(
-          color: Colors.white,
-          fontSize: 24,
-        ),
-      ),
-    );
-  }
-}
-
 class _ProfileScreenState extends State<ProfileScreen> {
   File? _profileImage;
   final ImagePicker _picker = ImagePicker();
 
   // Controladores para os campos de texto
-  final TextEditingController _phoneController = TextEditingController(text: "68 99210-4525");
-  final TextEditingController _emailController = TextEditingController(text: "Lucas@gmail.com");
-  final TextEditingController _cpfController = TextEditingController(text: "000.000.000-00");
+  final TextEditingController _emailController = TextEditingController();
+  final TextEditingController _nameController = TextEditingController();
+  final TextEditingController _phoneController = TextEditingController();
+  final TextEditingController _cpfController = TextEditingController();
+  
+  @override
+  void initState() {
+    super.initState();
+    _loadUserInfo();
+  }
+
+  Future<void> _loadUserInfo() async {
+    User? user = FirebaseAuth.instance.currentUser;
+    if (user != null) {
+      setState(() {
+        _emailController.text = user.email ?? '';
+        _nameController.text = user.displayName ?? ''; // Carrega o nome do usuário
+        // Carrega a foto do usuário
+      });
+    }
+  }
 
   Future<void> _pickImage(ImageSource source) async {
     final pickedFile = await _picker.pickImage(source: source);
@@ -52,21 +47,16 @@ class _ProfileScreenState extends State<ProfileScreen> {
     }
   }
 
-  Future<File> _saveProfileImage(File image) async {
-    final directory = await getApplicationDocumentsDirectory();
-    final imagePath = '${directory.path}/profile_image.jpg';
-    return image.copy(imagePath);
-  }
-
-  void _updateProfile() {
-    // Aqui você pode implementar a lógica para salvar as informações
-    print('Telefone: ${_phoneController.text}');
-    print('E-mail: ${_emailController.text}');
-    print('CPF: ${_cpfController.text}');
+  Future<void> _logout() async {
+    await FirebaseAuth.instance.signOut();
+    final googleSignIn = GoogleSignIn();
+    await googleSignIn.signOut();
+    Navigator.pushReplacementNamed(context, '/login');
   }
 
   @override
   Widget build(BuildContext context) {
+    User? user = FirebaseAuth.instance.currentUser; // Obter o usuário autenticado
     return Scaffold(
       appBar: AppBar(
         backgroundColor: Colors.white,
@@ -85,46 +75,49 @@ class _ProfileScreenState extends State<ProfileScreen> {
         child: Column(
           children: [
             SizedBox(height: 16),
-            // Imagem de perfil circular
+            // Imagem de perfil
             GestureDetector(
               onTap: () => _pickImage(ImageSource.gallery),
               child: CircleAvatar(
                 radius: 50,
                 backgroundColor: Colors.grey[300],
-                backgroundImage:
-                _profileImage != null ? FileImage(_profileImage!) : null,
-                child: _profileImage == null
+                backgroundImage: _profileImage != null
+                    ? FileImage(_profileImage!)
+                    : user?.photoURL != null
+                        ? NetworkImage(user!.photoURL!) // Carrega a foto do usuário
+                        : null,
+                child: _profileImage == null && user?.photoURL == null
                     ? Icon(Icons.camera_alt, size: 40, color: Colors.white70)
                     : null,
               ),
             ),
             SizedBox(height: 16),
-            // Nome do usuário
-            Text(
-              'Ruiz Marccos',
-              style: TextStyle(
-                fontSize: 24,
-                fontWeight: FontWeight.bold,
-              ),
+            // Campo de nome
+            _buildTextField("Nome", _nameController, true),
+            SizedBox(height: 16),
+            // Campo de e-mail
+            _buildTextField("E-mail", _emailController, true),
+            SizedBox(height: 16),
+            // Campo de telefone (ocultado)
+            Visibility(
+              visible: false, // Oculte este campo
+              child: _buildTextField("Telefone", _phoneController, false),
+            ),
+            SizedBox(height: 16),
+            // Campo de CPF (ocultado)
+            Visibility(
+              visible: false, // Oculte este campo
+              child: _buildTextField("CPF", _cpfController, false),
             ),
             SizedBox(height: 24),
-            // Campo de telefone
-            _buildTextField("Telefone", _phoneController),
-            SizedBox(height: 12),
-            // Campo de e-mail
-            _buildTextField("E-mail", _emailController),
-            SizedBox(height: 12),
-            // Campo de CPF
-            _buildTextField("CPF", _cpfController),
-            SizedBox(height: 24),
-            // Botão para atualizar dados
+            // Botão para logout
             ElevatedButton(
-              onPressed: _updateProfile,
+              onPressed: _logout,
               style: ElevatedButton.styleFrom(
-                backgroundColor: Colors.green,
+                backgroundColor: Colors.red,
                 minimumSize: Size(double.infinity, 48),
               ),
-              child: Text('Atualizar dados'),
+              child: Text('Logout'),
             ),
           ],
         ),
@@ -159,12 +152,11 @@ class _ProfileScreenState extends State<ProfileScreen> {
     );
   }
 
-  // Widget para construir campos de texto reutilizáveis
-  Widget _buildTextField(String label, TextEditingController controller) {
+  // Widget para construir campos de texto
+  Widget _buildTextField(String label, TextEditingController controller, bool isReadOnly) {
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
-        // Exibe o valor da label acima do TextField
         Text(
           label,
           style: TextStyle(
@@ -172,7 +164,7 @@ class _ProfileScreenState extends State<ProfileScreen> {
             color: Colors.grey[600],
           ),
         ),
-        SizedBox(height: 8), // Espaçamento entre o rótulo e o campo de texto
+        SizedBox(height: 8),
         TextField(
           controller: controller,
           decoration: InputDecoration(
@@ -183,6 +175,7 @@ class _ProfileScreenState extends State<ProfileScreen> {
               borderSide: BorderSide.none,
             ),
           ),
+          readOnly: isReadOnly,
         ),
       ],
     );
